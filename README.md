@@ -1,13 +1,13 @@
-# 1 Create new project
+## 1 Create new project
     - laravel new laravel-demo
 
-# 2 AuthController.php
+## 2 AuthController.php
     - 📁 app/Http/Controllers/AuthController.php
 
-# 3 Routes
+## 3 Routes
     - routes/web.php
 
-# 4 Protect routes (minimal auth check)
+## 4 Protect routes (minimal auth check)
 **📁 app/Http/Middleware/AuthCheck.php**
 
 ```
@@ -37,11 +37,11 @@ protected $routeMiddleware = [
 ];
 ```
 
-# 5 Use Https
+## 5 Use Https
 - composer global require laravel/valet
 - valet install
 
-# 6 Debug
+## 6 Debug
 - valet link laravel-demo
 - valet secure laravel-demo
 

@@ -139,7 +139,7 @@ class AuthController extends Controller
         return redirect()->away(
             $this->oauthUrl('/connect/logout') . '?' . http_build_query([
                 'id_token_hint' => $idToken,
-                'post_logout_redirect_uri' => 'https://laravel-demo.test'
+                'post_logout_redirect_uris' => 'https://laravel-demo.test'
             ])
         );
     }
