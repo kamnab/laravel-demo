@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Mail\Mailables\Content;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class AuthController extends Controller
 {
@@ -13,11 +15,11 @@ class AuthController extends Controller
      | Inline OAUTH Configuration
      |-----------------------------------------*/
     private array $oauth = [
-        'issuer' => 'https://account.odix.app',
+        'issuer' => 'https://localhost:44313',
         'client_id' => 'php-demo-id',
         'client_secret' => 'php-demo-secret',
         'redirect_uri' => 'https://laravel-demo.test/callback/login/local',
-        'scope' => 'openid profile email',
+        'scope' => 'openid profile email php-demo-services',
     ];
 
     /* ----------------------------------------
@@ -77,7 +79,7 @@ class AuthController extends Controller
             'Invalid state'
         );
 
-        $response = Http::asForm()->post(
+        $response = Http::withoutVerifying()->asForm()->post(
             $this->oauthUrl('/connect/token'),
             [
                 'grant_type' => 'authorization_code',
@@ -93,8 +95,25 @@ class AuthController extends Controller
 
         $tokens = $response->json();
 
+        // ✅ Extract SID from id_token
+        $sid = null;
+        $id_token = $tokens['id_token'] ?? null;
+        if ($id_token) {
+            $parts = explode('.', $id_token);
+
+            if (count($parts) === 3) {
+                $payload = json_decode(base64_decode($parts[1]), true);
+                $sid = $payload['sid'] ?? null;
+            }
+        }
+
+        /* Decode JWT claims */
+        // $payload = explode('.', $id_token)[1];
+        // $claims = json_decode(base64_decode($payload), true);
+        // return view('dashboard', ['userInfo' => $claims]);
+
         // 👉 Get user info
-        $userInfo = Http::withToken($tokens['access_token'])
+        $userInfo = Http::withoutVerifying()->withToken($tokens['access_token'])
             ->get($this->oauthUrl('/connect/userinfo'))
             ->json();
 
@@ -116,10 +135,19 @@ class AuthController extends Controller
         // 🔐 Regenerate session AFTER login
         $request->session()->regenerate();
 
+        // /api/backchannel-logout can not use session('sid') as it is not sent by browser, 
+        // so we need to store sid in cache with sub mapping
+        // ✅ Store SID mapping
+        if ($sid) {
+            Cache::put("sid_$sid", $userInfo['sub'], now()->addHours(2));
+        }
+
         // 👉 Store tokens securely
         session([
             'access_token' => $tokens['access_token'],
             'id_token' => $tokens['id_token'] ?? null,
+            // Store sid for front-channel logout in routes/web.php
+            'sid' => $sid,
         ]);
 
         return redirect('/');
